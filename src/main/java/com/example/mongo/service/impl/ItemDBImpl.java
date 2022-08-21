@@ -6,6 +6,8 @@ import com.example.mongo.service.Item;
 import com.example.mongo.service.ItemDB;
 import com.example.mongo.service.ItemFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ItemDBImpl implements ItemDB {
     private final ItemDocumentRepository itemDocumentRepository;
+    Logger logger = LoggerFactory.getLogger("ItemDBImpl");
 
     public ItemDBImpl(ItemDocumentRepository itemDocumentRepository) {
         this.itemDocumentRepository = itemDocumentRepository;
@@ -25,15 +28,14 @@ public class ItemDBImpl implements ItemDB {
     public String storeObject(Item item) {
         ItemDocument document = ItemDocument.builder()
                 .name(item.getName()).kind(item.getKind()).build();
-
         document = itemDocumentRepository.save(document);
         return document.getId();
+
     }
 
     @Override
     public Item getObjectByID(String id) {
         Optional<ItemDocument> document = itemDocumentRepository.findById(id);
-
         if (document.isPresent()) {
             ItemFactory factory = new ItemFactory(document.get());
             return factory.getItemObject();
@@ -44,7 +46,9 @@ public class ItemDBImpl implements ItemDB {
     @Override
     public Item getObjectByName(String name) {
         ItemDocument document = itemDocumentRepository.findItemByName(name);
-        // TODO handle nulls
+        if (document == null || document.getName() == null) {
+            return null;
+        }
         ItemFactory factory = new ItemFactory(document);
         return factory.getItemObject();
     }
@@ -60,8 +64,14 @@ public class ItemDBImpl implements ItemDB {
 
     @Override
     public boolean deleteObject(String id) {
-        itemDocumentRepository.deleteById(id);
-        //TODO return false incase of exceptions
-        return true;
+        try {
+            itemDocumentRepository.deleteById(id);
+            return true;
+        }
+        catch (Exception ex) {
+            logger.error("delete operation failed for id {}", id);
+            return false;
+        }
+
     }
 }
